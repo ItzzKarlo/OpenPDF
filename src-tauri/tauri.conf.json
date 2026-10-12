@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "OpenPDF",
+  "version": "0.1.0",
+  "identifier": "org.openpdf.editor",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{
+      "title": "OpenPDF",
+      "width": 1440,
+      "height": 920,
+      "minWidth": 900,
+      "minHeight": 600,
+      "resizable": true,
+      "fullscreen": false,
+      "titleBarStyle": "Overlay",
+      "hiddenTitle": true,
+      "trafficLightPosition": { "x": 17, "y": 22 },
+      "dragDropEnabled": true
+    }],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; connect-src ipc: http://ipc.localhost; script-src 'self' 'wasm-unsafe-eval'",
+      "devCsp": "default-src 'self'; img-src 'self' asset: data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; connect-src ipc: http://ipc.localhost ws://127.0.0.1:1420 http://127.0.0.1:1420; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "msi", "deb", "appimage"],
+    "category": "Productivity",
+    "shortDescription": "Private, offline PDF editing",
+    "longDescription": "OpenPDF is a free, offline-first desktop PDF editor.",
+    "macOS": { "minimumSystemVersion": "11.0" }
+  }
+}
