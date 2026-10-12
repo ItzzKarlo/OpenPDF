@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend and document tests
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser PDF smoke tests
+        run: npm run test:e2e
+
+  native:
+    name: Native ${{ matrix.label }}
+    needs: frontend
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS Apple Silicon
+            os: macos-latest
+            target: aarch64-apple-darwin
+            binary: src-tauri/target/aarch64-apple-darwin/release/openpdf
+          - label: macOS Intel
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            binary: src-tauri/target/x86_64-apple-darwin/release/openpdf
+          - label: Windows x64
+            os: windows-2022
+            target: x86_64-pc-windows-msvc
+            binary: src-tauri/target/x86_64-pc-windows-msvc/release/openpdf.exe
+          - label: Linux x64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            binary: src-tauri/target/x86_64-unknown-linux-gnu/release/openpdf
+          - label: Linux ARM64
+            os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            binary: src-tauri/target/aarch64-unknown-linux-gnu/release/openpdf
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          shared-key: ${{ matrix.target }}
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 xdg-utils xvfb
+      - run: npm ci
+      - name: Cross-platform PDF engine tests
+        run: npm test
+      - name: Rust tests
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml --target ${{ matrix.target }}
+      - name: Rust check
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml --target ${{ matrix.target }}
+      - name: Compile Tauri application
+        run: npm run tauri build -- --target ${{ matrix.target }} --no-bundle
+      - name: Smoke-test Linux startup
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set +e
+          timeout 15s xvfb-run -a "${{ matrix.binary }}"
+          status=$?
+          set -e
+          if [ "$status" -ne 124 ] && [ "$status" -ne 143 ]; then
+            echo "OpenPDF exited unexpectedly with status $status"
+            exit 1
+          fi
+      - name: Smoke-test macOS startup
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          "${{ matrix.binary }}" &
+          pid=$!
+          sleep 10
+          kill -0 "$pid"
+          kill "$pid"
+          wait "$pid" || true
+      - name: Smoke-test Windows startup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath "${{ matrix.binary }}" -PassThru
+          Start-Sleep -Seconds 10
+          if ($process.HasExited) { throw "OpenPDF exited unexpectedly with code $($process.ExitCode)" }
+          Stop-Process -Id $process.Id -Force
+
