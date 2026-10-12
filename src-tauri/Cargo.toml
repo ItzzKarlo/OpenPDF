@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A free, offline-first PDF editor"
 authors = ["OpenPDF contributors"]
 license = "MIT"
-repository = "https://github.com/openpdf-editor/openpdf"
+repository = "https://github.com/ItzzKarlo/OpenPDF"
 edition = "2021"
 rust-version = "1.90"
 

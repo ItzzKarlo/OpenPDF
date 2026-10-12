@@ -1,5 +1,6 @@
 import { FileText, Plus, X } from 'lucide-react';
 import { isDocumentDirty, useAppStore } from '../store/appStore';
+import { primaryModifierLabel } from '../services/platform';
 
 interface Props { onOpen: () => void; onClose: (id: string) => void }
 
@@ -29,7 +30,7 @@ export function DocumentTabs({ onOpen, onClose }: Props) {
           ><X size={13} /></span>
         </button>
       ))}
-      <button type="button" className="new-tab" onClick={onOpen} aria-label="Open PDF" title="Open PDF (⌘O)"><Plus size={16} /></button>
+      <button type="button" className="new-tab" onClick={onOpen} aria-label="Open PDF" title={`Open PDF (${primaryModifierLabel()}O)`}><Plus size={16} /></button>
     </div>
   );
 }

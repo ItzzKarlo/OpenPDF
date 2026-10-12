@@ -8,6 +8,7 @@ import { createOpenDocument, isDocumentDirty, useAppStore } from './store/appSto
 import type { SearchMatch, SourceDocument } from './types/document';
 import { DocumentViewer } from './components/DocumentViewer';
 import { navigateToPage } from './services/navigation';
+import { hasPrimaryModifier, isMacPlatform } from './services/platform';
 import { Inspector } from './components/Inspector';
 import { Modal } from './components/Modal';
 import { Sidebar } from './components/Sidebar';
@@ -170,12 +171,16 @@ export function App() {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       if (target.matches('input, textarea, select, [contenteditable="true"]')) return;
-      const command = event.metaKey || event.ctrlKey;
+      const command = hasPrimaryModifier(event);
+      const macOS = isMacPlatform();
       if (command && event.key.toLowerCase() === 'o') { event.preventDefault(); void openFiles(); }
       else if (command && event.key.toLowerCase() === 's') { event.preventDefault(); void saveActive(event.shiftKey); }
       else if (command && event.key.toLowerCase() === 'z' && active) {
         event.preventDefault();
         if (event.shiftKey) store.redo(active.id); else store.undo(active.id);
+      }
+      else if (!macOS && command && event.key.toLowerCase() === 'y' && active) {
+        event.preventDefault(); store.redo(active.id);
       }
       else if ((event.key === 'Delete' || event.key === 'Backspace') && active?.selectedObjectId) {
         event.preventDefault(); store.mutateSnapshot(active.id, (snapshot) => { snapshot.edits = snapshot.edits.filter((edit) => edit.id !== active.selectedObjectId); });

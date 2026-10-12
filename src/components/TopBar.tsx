@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAppStore } from '../store/appStore';
+import { primaryModifierLabel } from '../services/platform';
 import type { SearchMatch } from '../types/document';
 import { DocumentTabs } from './DocumentTabs';
 import { IconButton } from './IconButton';
@@ -48,8 +49,8 @@ export function TopBar({ onOpen, onClose, onSave, onSearch, onNavigate }: Props)
           </div>}
         </div>
         <IconButton icon={FolderOpen} label="Open PDF" onClick={onOpen} />
-        <IconButton icon={Save} label="Save (⌘S)" disabled={!active} onClick={() => onSave(false)} />
-        <IconButton icon={Download} label="Save As (⇧⌘S)" disabled={!active} onClick={() => onSave(true)} />
+        <IconButton icon={Save} label={`Save (${primaryModifierLabel()}S)`} disabled={!active} onClick={() => onSave(false)} />
+        <IconButton icon={Download} label={`Save As (Shift+${primaryModifierLabel()}S)`} disabled={!active} onClick={() => onSave(true)} />
         <IconButton icon={store.inspectorOpen ? PanelRightClose : PanelRightOpen} label="Toggle inspector" onClick={() => store.setPanel('inspector', !store.inspectorOpen)} />
         <IconButton icon={store.theme === 'dark' ? Sun : Moon} label="Toggle appearance" onClick={() => store.setTheme(store.theme === 'dark' ? 'light' : 'dark')} />
       </div>

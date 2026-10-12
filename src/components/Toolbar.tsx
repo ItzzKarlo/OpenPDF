@@ -3,6 +3,7 @@ import {
   RectangleHorizontal, Redo2, RemoveFormatting, Signature, Slash, Type, Undo2,
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
+import { isMacPlatform, primaryModifierLabel } from '../services/platform';
 import type { Tool } from '../types/document';
 import { IconButton } from './IconButton';
 
@@ -28,8 +29,8 @@ export function Toolbar() {
   return (
     <div className="toolbar" role="toolbar" aria-label="Editing tools">
       <div className="tool-group">
-        <IconButton icon={Undo2} label="Undo (⌘Z)" disabled={!document?.undoStack.length} onClick={() => document && undo(document.id)} />
-        <IconButton icon={Redo2} label="Redo (⇧⌘Z)" disabled={!document?.redoStack.length} onClick={() => document && redo(document.id)} />
+        <IconButton icon={Undo2} label={`Undo (${primaryModifierLabel()}Z)`} disabled={!document?.undoStack.length} onClick={() => document && undo(document.id)} />
+        <IconButton icon={Redo2} label={`Redo (${isMacPlatform() ? `Shift+${primaryModifierLabel()}Z` : `${primaryModifierLabel()}Y`})`} disabled={!document?.redoStack.length} onClick={() => document && redo(document.id)} />
       </div>
       <div className="toolbar-rule" />
       <div className="tool-group scrollable-tools">

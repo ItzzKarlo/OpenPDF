@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { pdfJsAdapter } from '../engine/PdfJsAdapter';
 import { duplicatePage, insertBlankPage, reorderPages, rotatePages } from '../engine/pageOperations';
 import { useAppStore } from '../store/appStore';
+import { hasPrimaryModifier } from '../services/platform';
 import type { OpenDocument, PageModel } from '../types/document';
 import { IconButton } from './IconButton';
 
@@ -67,7 +68,7 @@ export function Sidebar({ onMerge, onExtract, onSplit, onNavigate }: Props) {
             key={page.id}
             className={`thumbnail-item ${selected.has(page.id) ? 'selected' : ''}`}
             draggable
-            onClick={(event) => choosePage(page, event.metaKey || event.ctrlKey || event.shiftKey)}
+            onClick={(event) => choosePage(page, hasPrimaryModifier(event.nativeEvent) || event.shiftKey)}
             onDragStart={() => setDragIndex(index)}
             onDragOver={(event) => event.preventDefault()}
             onDrop={() => {

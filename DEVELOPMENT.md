@@ -5,45 +5,68 @@
 - Node.js 22+ and npm 11+
 - Rust 1.90+
 - macOS: Xcode Command Line Tools
-- Windows: Microsoft C++ Build Tools and WebView2
-- Linux: the WebKitGTK and system libraries listed in the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
+- Windows: Microsoft C++ Build Tools. Windows 10/11 normally includes WebView2; the packaged installer downloads the evergreen bootstrapper when it is absent.
+- Debian/Ubuntu Linux: `libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 xdg-utils`
 
-## Commands
+Use `npm ci` for reproducible installs. The lockfiles for npm and Cargo are committed.
+
+## Validation commands
 
 ```sh
-npm install              # install pinned frontend tooling
-npm run fixtures         # regenerate deterministic sample and form PDFs
-npm run dev              # webview UI only
-npm run tauri dev        # complete desktop development build
+npm ci
+npm run fixtures            # regenerate deterministic sample and form PDFs
 npm run typecheck
 npm run lint
-npm test
-npm run test:e2e         # install Playwright Chromium first if needed
+npm test                    # includes fixture open/edit/export/save/reopen
+npx playwright install chromium
+npm run test:e2e            # browser rendering/search smoke tests
 npm run build
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+cargo test --locked --manifest-path src-tauri/Cargo.toml
+cargo clippy --locked --manifest-path src-tauri/Cargo.toml -- -D warnings
+npm run tauri dev
 ```
 
-## macOS Apple Silicon release
+Browser tests exercise the platform-neutral PDF workflow but cannot test native dialogs. Rust tests exercise extension validation and the platform save/replace path. CI also compiles and starts the actual Tauri executable on each target. A headless startup smoke test proves that the process initializes and stays alive; it is not a substitute for manual GUI acceptance testing.
+
+## Native builds
+
+Build each package on its native OS. Platform overrides live in `src-tauri/tauri.macos.conf.json`, `tauri.windows.conf.json`, and `tauri.linux.conf.json`; Tauri merges the applicable file automatically.
 
 ```sh
+# macOS Apple Silicon
 rustup target add aarch64-apple-darwin
-npm ci
-npm run tauri build -- --target aarch64-apple-darwin --bundles app,dmg
+npm run tauri build -- --target aarch64-apple-darwin --bundles dmg
+
+# macOS Intel, on an Intel runner/host
+rustup target add x86_64-apple-darwin
+npm run tauri build -- --target x86_64-apple-darwin --bundles dmg
+
+# Windows x64, in PowerShell
+rustup target add x86_64-pc-windows-msvc
+npm run tauri build -- --target x86_64-pc-windows-msvc --bundles nsis,msi
+
+# Linux x64
+rustup target add x86_64-unknown-linux-gnu
+npm run tauri build -- --target x86_64-unknown-linux-gnu --bundles deb,appimage
+
+# Linux ARM64 on an ARM64 Linux host
+rustup target add aarch64-unknown-linux-gnu
+npm run tauri build -- --target aarch64-unknown-linux-gnu --bundles deb,appimage
 ```
 
-Artifacts are written to `src-tauri/target/aarch64-apple-darwin/release/bundle/macos/` and `.../dmg/`. An unsigned local build can be opened for testing. Public distribution requires an Apple Developer ID certificate, hardened runtime signing, notarization, and stapling; configure those through Tauri’s macOS bundle settings and CI secrets rather than committing credentials.
+Artifacts are below `src-tauri/target/<target>/release/bundle/`. Run `node scripts/verify-bundles.mjs <target>` after a packaged build. It validates executable and AppImage headers, required installer types, Debian architecture metadata, and the macOS app signature.
 
-For Intel macOS use `x86_64-apple-darwin`. Build both targets and combine native sidecars only if a universal application is required. The TypeScript application is architecture-neutral.
+The Linux packages are built on Ubuntu 22.04 because a newer glibc baseline reduces portability. This still does not guarantee every distribution: validate representative Debian/Ubuntu, Fedora-family, and AppImage environments before expanding support claims.
 
-## Windows and Linux
+## Platform compatibility notes
 
-Use `npm run tauri build` on the target OS. Tauri is configured for MSI on Windows and DEB/AppImage on Linux. The Rust safe-write implementation uses atomic rename on Unix; Windows uses a recoverable backup/rename sequence because replacing an existing file has different semantics.
-
-## Tests
-
-Unit tests cover all rotations and multiple zoom levels, page operations and ranges, undo/redo, dirty transitions, and vector PDF export/reopen. `scripts/generate-samples.mjs` creates a three-page source document and a two-field AcroForm at `tests/fixtures/`.
-
-The Playwright smoke test verifies the startup shell and privacy copy. More document UI scenarios should be run against the Tauri driver in CI; browser tests cannot exercise native dialogs or Rust writes.
+- The base window uses native decorations. Only the macOS override enables the overlay title bar and traffic-light placement.
+- Shortcuts use Command on Apple platforms and Control on Windows/Linux; Windows/Linux redo also supports `Ctrl+Y`.
+- Paths are passed as native strings to Rust. Display names recognize both slash styles, extensions are case-insensitive, and no drive letter or home-directory layout is assumed.
+- PDF.js loads its worker through Vite’s local asset pipeline. The production CSP permits self/blob workers but no remote worker CDN.
+- CSS uses system font fallbacks (`-apple-system`, `Segoe UI`, generic sans-serif). Exported text uses PDF standard fonts, so it does not depend on host font installation.
+- Unix saves preserve existing file permissions before atomic rename. Windows uses `ReplaceFileW` with write-through semantics so an existing destination is not deleted before replacement.
 
 ## Adding an editing tool
 
@@ -55,4 +78,4 @@ The Playwright smoke test verifies the startup shell and privacy copy. More docu
 
 ## Dependency and security policy
 
-Use stable Tauri 2 releases, audit npm and Cargo changes, and avoid introducing network clients or broad filesystem permissions. Do not add AGPL libraries—including MuPDF—without an explicit licensing decision documented for the entire product.
+Use stable Tauri 2 releases, audit npm and Cargo changes, and avoid network clients or broad filesystem permissions. Do not add AGPL libraries—including MuPDF—without an explicit licensing decision for the whole product.
