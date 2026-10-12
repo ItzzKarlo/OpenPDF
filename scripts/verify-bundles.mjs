@@ -53,10 +53,17 @@ const requireFiles = (label, predicate, count = 1) => {
 };
 
 if (platform === 'macos') {
-  const appBinary = path.join(bundleDir, 'macos', 'OpenPDF.app', 'Contents', 'MacOS', 'openpdf');
+  const appDir = path.join(bundleDir, 'macos', 'OpenPDF.app');
+  const infoPlist = path.join(appDir, 'Contents', 'Info.plist');
+  const executable = spawnSync('plutil', ['-extract', 'CFBundleExecutable', 'raw', '-o', '-', infoPlist], { encoding: 'utf8' });
+  if (executable.status !== 0 || !executable.stdout.trim()) {
+    throw new Error(`Unable to read CFBundleExecutable from ${infoPlist}: ${executable.stderr}`);
+  }
+  const appBinary = path.join(appDir, 'Contents', 'MacOS', executable.stdout.trim());
+  console.log(`macOS bundle executable: ${executable.stdout.trim()}`);
   await assertArchitecture(appBinary);
   requireFiles('DMG', (file) => file.endsWith('.dmg'));
-  const verify = spawnSync('codesign', ['--verify', '--deep', '--strict', path.join(bundleDir, 'macos', 'OpenPDF.app')], { encoding: 'utf8' });
+  const verify = spawnSync('codesign', ['--verify', '--deep', '--strict', appDir], { encoding: 'utf8' });
   if (verify.status !== 0) throw new Error(`macOS bundle signature verification failed: ${verify.stderr}`);
   console.log('Verified macOS app bundle signature');
 } else if (platform === 'windows') {
